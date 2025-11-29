@@ -112,6 +112,13 @@ public class MultiGameLayout extends JPanel {
                 // 각 패널이 해당 플레이어의 쓰레기 줄 대기량을 바로 읽어오도록 공급자를 연결한다.
                 attackQueuePanel_1.bindPendingLinesSupplier(() -> session.handler().getPendingLines(1));
                 attackQueuePanel_2.bindPendingLinesSupplier(() -> session.handler().getPendingLines(2));
+                if (session.isTimeLimitMode()) {
+                        timerPanel.bindTimeSupplier(session::getRemainingTimeMillis);
+                        showTimer();
+                } else {
+                        timerPanel.bindGameModel(session.playerOneModel());
+                        hideTimer();
+                }
                 repaint();
         }
 
@@ -136,6 +143,7 @@ public class MultiGameLayout extends JPanel {
 
                 gbc.weightx = gbc.gridwidth;
                 gbc.weighty = gbc.gridheight;
+
 
                 gbc.fill = fill;
                 gbc.anchor = anchor;

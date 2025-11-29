@@ -5,5 +5,6 @@ package tetris.domain;
  */
 public enum GameMode {
     STANDARD,
-    ITEM
+    ITEM,
+    TIME_LIMIT
 }

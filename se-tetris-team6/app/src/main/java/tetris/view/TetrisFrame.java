@@ -341,6 +341,9 @@ public class TetrisFrame extends JFrame {
                     dlg.setResizable(false);
                     dlg.setLocationRelativeTo(win);
                     dlg.setVisible(true);
+                } else {
+                    // 로컬 멀티플레이 진입
+                    onLocalMultiPlayConfirmed(mode);
                 }
             }
 
@@ -810,7 +813,7 @@ public class TetrisFrame extends JFrame {
             return GameMode.ITEM;
         }
         if ("TIME_LIMIT".equalsIgnoreCase(mode)) {
-            System.out.println("[UI][WARN] Time Limit mode is not implemented; falling back to STANDARD");
+                        return GameMode.TIME_LIMIT;
         }
         return GameMode.STANDARD;
     }

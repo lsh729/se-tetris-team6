@@ -12,20 +12,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import tetris.network.protocol.GameMessage;
 import tetris.network.protocol.MessageType;
-import tetris.network.INetworkThreadCallback; 
-
-// =================================================================
-// NetworkThread에서 사용하는 유틸리티
-// =================================================================
-
-class NetworkStats {
-    public final long currentLatency;
-    public final int sendQueueSize;
-    public NetworkStats(long latency, int size) {
-        this.currentLatency = latency;
-        this.sendQueueSize = size;
-    }
-}
+import tetris.network.INetworkThreadCallback;
 
 // =================================================================
 // NetworkThread 구현 시작
@@ -319,7 +306,7 @@ public class NetworkThread implements Runnable {
     }
 
     public NetworkStats getNetworkStats() {
-        return new NetworkStats(currentLatency, outgoingQueue.size());
+        return new NetworkStats(0L, 0L, currentLatency);
     }
 
     public void shutdown() {
@@ -368,25 +355,21 @@ public class NetworkThread implements Runnable {
     }
     
     private void closeStreamsAndSocket() {
-        try {
-            if (readerThread != null) {
-                readerThread.interrupt();
-            }
-            // 먼저 소켓의 입력/출력 스트림을 shutdown 시도하여 readObject 블로킹을 해제
-            if (socket != null && !socket.isClosed()) {
-                try { socket.shutdownInput(); } catch (IOException ignore) {}
-                try { socket.shutdownOutput(); } catch (IOException ignore) {}
-            }
-            if (outputStream != null) try { outputStream.close(); } catch (IOException ignore) {}
-            if (inputStream != null) try { inputStream.close(); } catch (IOException ignore) {}
-            if (socket != null && !socket.isClosed()) try { socket.close(); } catch (IOException ignore) {}
-        } catch (IOException e) {
-            System.err.println("스트림/소켓 닫기 오류: " + e.getMessage());
-        } finally {
-            outputStream = null;
-            inputStream = null;
-            socket = null;
+        if (readerThread != null) {
+            readerThread.interrupt();
         }
+        // 먼저 소켓의 입력/출력 스트림을 shutdown 시도하여 readObject 블로킹을 해제
+        if (socket != null && !socket.isClosed()) {
+            try { socket.shutdownInput(); } catch (IOException ignore) {}
+            try { socket.shutdownOutput(); } catch (IOException ignore) {}
+        }
+        if (outputStream != null) try { outputStream.close(); } catch (IOException ignore) {}
+        if (inputStream != null) try { inputStream.close(); } catch (IOException ignore) {}
+        if (socket != null && !socket.isClosed()) try { socket.close(); } catch (IOException ignore) {}
+
+        outputStream = null;
+        inputStream = null;
+        socket = null;
     }
     
     private void cleanup() {

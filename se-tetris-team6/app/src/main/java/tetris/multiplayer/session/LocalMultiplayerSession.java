@@ -20,6 +20,12 @@ public final class LocalMultiplayerSession {
     private final MultiPlayerGame game;
     private final MultiPlayerController controller;
     private final LocalMultiplayerHandler handler;
+    private static final long DEFAULT_TIME_LIMIT_MS = 180_000L; // 3 minutes
+    private long timeLimitMillis = DEFAULT_TIME_LIMIT_MS;
+    private long remainingTimeMillis;
+    private long lastTickMillis;
+    private boolean timeExpired;
+    private GameMode currentMode = GameMode.STANDARD;
 
     public LocalMultiplayerSession(PlayerState player1,
                                    PlayerState player2,
@@ -63,6 +69,8 @@ public final class LocalMultiplayerSession {
      */
     public void restartPlayers(GameMode mode) {
         GameMode resolved = mode == null ? GameMode.STANDARD : mode;
+        this.currentMode = resolved;
+        resetTimeLimit();
         playerOneModel().startGame(resolved);
         playerTwoModel().startGame(resolved);
     }
@@ -73,5 +81,56 @@ public final class LocalMultiplayerSession {
     public void shutdown() {
         playerOneModel().quitToMenu();
         playerTwoModel().quitToMenu();
+    }
+
+    /**
+     * TIME_LIMIT 모드에서만 남은 시간을 감소시킨다.
+     */
+    public void tickTimeLimit(long nowMillis) {
+        if (!isTimeLimitMode()) {
+            return;
+        }
+        if (lastTickMillis == 0L) {
+            lastTickMillis = nowMillis;
+            return;
+        }
+        long delta = Math.max(0L, nowMillis - lastTickMillis);
+        remainingTimeMillis -= delta;
+        lastTickMillis = nowMillis;
+    }
+
+    public boolean isTimeUp() {
+        return remainingTimeMillis <= 0L;
+    }
+
+    public long getRemainingTimeMillis() {
+        return Math.max(0L, remainingTimeMillis);
+    }
+
+    public boolean isTimeLimitMode() {
+        return currentMode == GameMode.TIME_LIMIT;
+    }
+
+    public void markTimeExpired() {
+        this.timeExpired = true;
+    }
+
+    public boolean hasTimeExpired() {
+        return timeExpired;
+    }
+
+    public GameMode getCurrentMode() {
+        return currentMode;
+    }
+
+    private void resetTimeLimit() {
+        timeExpired = false;
+        if (isTimeLimitMode()) {
+            remainingTimeMillis = timeLimitMillis;
+            lastTickMillis = System.currentTimeMillis();
+        } else {
+            remainingTimeMillis = 0L;
+            lastTickMillis = 0L;
+        }
     }
 }

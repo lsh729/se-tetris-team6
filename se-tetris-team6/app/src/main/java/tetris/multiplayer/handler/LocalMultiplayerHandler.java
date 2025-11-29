@@ -9,6 +9,7 @@ import tetris.domain.handler.GameHandler;
 import tetris.domain.model.GameState;
 import tetris.multiplayer.controller.MultiPlayerController;
 import tetris.multiplayer.model.MultiPlayerGame;
+import tetris.multiplayer.session.LocalMultiplayerSession;
 
 /**
  * Local 2P 모드를 기존 {@link GameHandler} 상태 머신에 붙여주는 핸들러.
@@ -46,8 +47,16 @@ public final class LocalMultiplayerHandler implements GameHandler {
     @Override
     public void update(GameModel model) {
         controller.tick();
+        LocalMultiplayerSession session = model.getActiveLocalMultiplayerSession().orElse(null);
+        // 시간제한 모드 처리
+        if (session != null && session.isTimeLimitMode() && !game.isGameOver() && !session.hasTimeExpired()) {
+            session.tickTimeLimit(System.currentTimeMillis());
+            if (session.isTimeUp()) {
+                handleTimeUp(model, session);
+            }
+        }
         // 개별 플레이어가 먼저 GAME_OVER가 되면 즉시 패배자로 표시한다.
-        if (!game.isGameOver()) {
+        if (!game.isGameOver() && (session == null || !session.hasTimeExpired())) {
             if (game.modelOf(1).getCurrentState() == GameState.GAME_OVER) {
                 System.out.println("[LOG][LocalMulti] Player1 reached GAME_OVER → mark loser");
                 game.markLoser(1);
@@ -66,6 +75,24 @@ public final class LocalMultiplayerHandler implements GameHandler {
             model.changeState(GameState.GAME_OVER);
             model.showMultiplayerResult(winnerId);
         }
+    }
+
+    private void handleTimeUp(GameModel model, LocalMultiplayerSession session) {
+        int p1Score = game.modelOf(1).getScore().getPoints();
+        int p2Score = game.modelOf(2).getScore().getPoints();
+        if (p1Score > p2Score) {
+            game.markLoser(2);
+        } else if (p2Score > p1Score) {
+            game.markLoser(1);
+        } else {
+            controller.withPlayer(1, m -> m.changeState(GameState.GAME_OVER));
+            controller.withPlayer(2, m -> m.changeState(GameState.GAME_OVER));
+            model.changeState(GameState.GAME_OVER);
+            model.showMultiplayerResult(-1);
+            session.markTimeExpired();
+            return;
+        }
+        session.markTimeExpired();
     }
 
     @Override

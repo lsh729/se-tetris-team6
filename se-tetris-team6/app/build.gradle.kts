@@ -47,6 +47,10 @@ tasks.named<Test>("test") {
     finalizedBy("jacocoTestReport")
 }
 
+tasks.withType<JavaCompile>().configureEach {
+    options.encoding = "UTF-8"
+}
+
 tasks.named<JacocoReport>("jacocoTestReport") {
     dependsOn(tasks.named("test"))
     reports {

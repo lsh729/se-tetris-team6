@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Run Tetris",
+            "request": "launch",
+            "mainClass": "tetris.App",
+            "projectName": "app",
+            "cwd": "${workspaceFolder}/app"
+        }
+    ]
+}

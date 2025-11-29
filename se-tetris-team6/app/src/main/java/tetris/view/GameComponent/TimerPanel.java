@@ -10,6 +10,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import java.util.function.LongSupplier;
 
 import tetris.domain.GameModel;
 
@@ -18,9 +19,10 @@ public class TimerPanel extends JPanel {
     private Timer refreshTimer;
     private GameModel gameModel;
     private Method timeGetter;
+    private LongSupplier timeSupplier;
 
     public TimerPanel() {
-        label = new JLabel("00:00.000");
+        label = new JLabel("00:00");
         label.setFont(new Font("SansSerif", Font.BOLD, 16));
         // set text color to black
         label.setForeground(Color.BLACK);
@@ -51,7 +53,22 @@ public class TimerPanel extends JPanel {
         stopRefresh();
         this.gameModel = gameModel;
         this.timeGetter = findTimeGetter(gameModel);
+        this.timeSupplier = null;
         // start polling UI updates every 50ms
+        refreshTimer = new Timer(50, e -> updateFromModel());
+        refreshTimer.setRepeats(true);
+        refreshTimer.start();
+        updateFromModel();
+    }
+
+    /**
+     * Bind a time supplier (e.g., LocalMultiplayerSession#getRemainingTimeMillis) directly.
+     */
+    public void bindTimeSupplier(LongSupplier supplier) {
+        stopRefresh();
+        this.timeSupplier = supplier;
+        this.gameModel = null;
+        this.timeGetter = null;
         refreshTimer = new Timer(50, e -> updateFromModel());
         refreshTimer.setRepeats(true);
         refreshTimer.start();
@@ -78,29 +95,37 @@ public class TimerPanel extends JPanel {
     }
 
     private void updateFromModel() {
-        if (gameModel == null)
+        if (timeSupplier == null && gameModel == null)
             return;
         long millis = 0L;
-        try {
-            if (timeGetter != null) {
-                Object v = timeGetter.invoke(gameModel);
-                if (v instanceof Number) {
-                    millis = ((Number) v).longValue();
-                }
-            } else {
-                // fallback to getCurrentTick if available
-                try {
-                    Method m = gameModel.getClass().getMethod("getCurrentTick");
-                    Object v = m.invoke(gameModel);
+        if (timeSupplier != null) {
+            try {
+                millis = timeSupplier.getAsLong();
+            } catch (Exception ignored) {
+            }
+        } else {
+            try {
+                if (timeGetter != null) {
+                    Object v = timeGetter.invoke(gameModel);
                     if (v instanceof Number) {
                         millis = ((Number) v).longValue();
                     }
-                } catch (Exception ex) {
-                    // ignore
+
+                } else {
+                    // fallback to getCurrentTick if available
+                    try {
+                        Method m = gameModel.getClass().getMethod("getCurrentTick");
+                        Object v = m.invoke(gameModel);
+                        if (v instanceof Number) {
+                            millis = ((Number) v).longValue();
+                        }
+                    } catch (Exception ex) {
+                        // ignore
+                    }
                 }
+            } catch (Exception ex) {
+                // reflection failed; ignore and keep millis 0
             }
-        } catch (Exception ex) {
-            // reflection failed; ignore and keep millis 0
         }
 
         final String txt = formatMillis(millis);
@@ -114,8 +139,7 @@ public class TimerPanel extends JPanel {
         long totalMillis = millis;
         long minutes = totalMillis / 60000L;
         long seconds = (totalMillis % 60000L) / 1000L;
-        long ms = totalMillis % 1000L;
-        return String.format("%02d:%02d.%03d", minutes, seconds, ms);
+        return String.format("%02d:%02d", minutes, seconds);
     }
 
     public void stopRefresh() {
